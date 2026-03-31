@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Face Detection Live</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <section class="panel controls">
+        <h1>Webcam Face Detection</h1>
+        <p>Start the stream and detect faces directly in your browser.</p>
+
+        <form id="controlsForm">
+          <label for="camera_index">Camera Index</label>
+          <input id="camera_index" name="camera_index" type="number" value="0" min="0" />
+
+          <label for="scale_factor">Scale Factor</label>
+          <input id="scale_factor" name="scale_factor" type="number" value="1.1" step="0.01" min="1.01" />
+
+          <label for="min_neighbors">Min Neighbors</label>
+          <input id="min_neighbors" name="min_neighbors" type="number" value="5" min="1" />
+
+          <label for="min_size">Min Face Size</label>
+          <input id="min_size" name="min_size" type="number" value="40" min="10" />
+
+          <label class="check" for="draw_fps">
+            <input id="draw_fps" name="draw_fps" type="checkbox" />
+            Show FPS
+          </label>
+
+          <div class="buttons">
+            <button type="submit">Start Stream</button>
+            <button type="button" id="stopBtn" class="ghost">Stop</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel preview">
+        <div class="preview-head">
+          <h2>Live Feed</h2>
+          <span id="status">Idle</span>
+        </div>
+        <img id="videoFeed" alt="Live webcam feed" />
+      </section>
+    </main>
+
+    <script>
+      const form = document.getElementById("controlsForm");
+      const videoFeed = document.getElementById("videoFeed");
+      const stopBtn = document.getElementById("stopBtn");
+      const statusTag = document.getElementById("status");
+
+      function buildStreamUrl() {
+        const formData = new FormData(form);
+        const params = new URLSearchParams();
+
+        params.set("camera_index", formData.get("camera_index"));
+        params.set("scale_factor", formData.get("scale_factor"));
+        params.set("min_neighbors", formData.get("min_neighbors"));
+        params.set("min_size", formData.get("min_size"));
+        if (formData.get("draw_fps")) {
+          params.set("draw_fps", "1");
+        }
+        params.set("t", Date.now().toString());
+
+        return `/video_feed?${params.toString()}`;
+      }
+
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        statusTag.textContent = "Streaming";
+        videoFeed.src = buildStreamUrl();
+      });
+
+      stopBtn.addEventListener("click", () => {
+        videoFeed.removeAttribute("src");
+        statusTag.textContent = "Stopped";
+      });
+
+      videoFeed.addEventListener("error", () => {
+        statusTag.textContent = "Camera error";
+      });
+    </script>
+  </body>
+</html>
