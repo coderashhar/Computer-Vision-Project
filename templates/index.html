@@ -22,6 +22,12 @@
           <label for="camera_index">Camera Index</label>
           <input id="camera_index" name="camera_index" type="number" value="0" min="0" />
 
+          <div class="preset-row" aria-label="Quick presets">
+            <button type="button" class="preset-btn" data-preset="balanced">Balanced</button>
+            <button type="button" class="preset-btn" data-preset="fast">Fast</button>
+            <button type="button" class="preset-btn" data-preset="distance">Distance</button>
+          </div>
+
           <label for="scale_factor">Scale Factor</label>
           <input id="scale_factor" name="scale_factor" type="number" value="1.1" step="0.01" min="1.01" />
 
@@ -61,6 +67,16 @@
       const captureBtn = document.getElementById("captureBtn");
       const statusTag = document.getElementById("status");
       const message = document.getElementById("message");
+      const presetButtons = document.querySelectorAll(".preset-btn");
+      const scaleInput = document.getElementById("scale_factor");
+      const neighborsInput = document.getElementById("min_neighbors");
+      const minSizeInput = document.getElementById("min_size");
+
+      const presets = {
+        balanced: { scale: "1.10", neighbors: "5", minSize: "40" },
+        fast: { scale: "1.22", neighbors: "3", minSize: "60" },
+        distance: { scale: "1.05", neighbors: "6", minSize: "26" },
+      };
 
       function setMessage(text, isError = false) {
         message.textContent = text;
@@ -83,12 +99,40 @@
         return `/video_feed?${params.toString()}`;
       }
 
+      function applyPreset(name) {
+        const preset = presets[name];
+        if (!preset) {
+          return;
+        }
+        scaleInput.value = preset.scale;
+        neighborsInput.value = preset.neighbors;
+        minSizeInput.value = preset.minSize;
+
+        presetButtons.forEach((button) => {
+          const active = button.dataset.preset === name;
+          button.classList.toggle("active", active);
+          if (active) {
+            button.setAttribute("aria-pressed", "true");
+          } else {
+            button.setAttribute("aria-pressed", "false");
+          }
+        });
+
+        setMessage(`Preset applied: ${name}.`);
+      }
+
       form.addEventListener("submit", (event) => {
         event.preventDefault();
         statusTag.textContent = "Streaming";
         videoFeed.src = buildStreamUrl();
         setMessage("Stream started.");
       });
+
+      presetButtons.forEach((button) => {
+        button.addEventListener("click", () => applyPreset(button.dataset.preset));
+      });
+
+      applyPreset("balanced");
 
       stopBtn.addEventListener("click", () => {
         videoFeed.removeAttribute("src");
