@@ -4,7 +4,7 @@ import threading
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Iterator
+from typing import Any, Iterator
 
 import cv2
 import numpy as np
@@ -16,6 +16,13 @@ app = Flask(__name__)
 
 _latest_jpeg: bytes | None = None
 _frame_lock = threading.Lock()
+_stats_lock = threading.Lock()
+_stats: dict[str, Any] = {
+    "frames_encoded": 0,
+    "stream_requests": 0,
+    "snapshots_taken": 0,
+    "last_snapshot_path": None,
+}
 
 
 def _set_latest_jpeg(frame_jpeg: bytes) -> None:
@@ -27,6 +34,21 @@ def _set_latest_jpeg(frame_jpeg: bytes) -> None:
 def _get_latest_jpeg() -> bytes | None:
     with _frame_lock:
         return _latest_jpeg
+
+
+def _inc_stat(name: str, amount: int = 1) -> None:
+    with _stats_lock:
+        _stats[name] = int(_stats.get(name, 0)) + amount
+
+
+def _set_stat(name: str, value: Any) -> None:
+    with _stats_lock:
+        _stats[name] = value
+
+
+def _get_stats() -> dict[str, Any]:
+    with _stats_lock:
+        return dict(_stats)
 
 
 def _get_int_param(name: str, default: int, min_value: int = 0) -> int:
@@ -139,6 +161,7 @@ def generate_frames(
 
             frame_jpeg = buffer.tobytes()
             _set_latest_jpeg(frame_jpeg)
+            _inc_stat("frames_encoded")
 
             yield (
                 b"--frame\r\n"
@@ -155,6 +178,8 @@ def index() -> str:
 
 @app.get("/video_feed")
 def video_feed() -> Response:
+    _inc_stat("stream_requests")
+
     camera_index = _get_int_param("camera_index", 0, min_value=0)
     scale_factor = _get_float_param("scale_factor", 1.1, min_value=1.01)
     min_neighbors = _get_int_param("min_neighbors", 5, min_value=1)
@@ -178,6 +203,11 @@ def health() -> Response:
     return jsonify({"status": "ok", "service": "face-detection-web"})
 
 
+@app.get("/stats")
+def stats() -> Response:
+    return jsonify({"ok": True, "stats": _get_stats()})
+
+
 @app.post("/snapshot")
 def snapshot() -> Response:
     frame_jpeg = _get_latest_jpeg()
@@ -189,6 +219,8 @@ def snapshot() -> Response:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     snapshot_path = save_dir / f"web_snapshot_{timestamp}.jpg"
     snapshot_path.write_bytes(frame_jpeg)
+    _inc_stat("snapshots_taken")
+    _set_stat("last_snapshot_path", str(snapshot_path))
 
     return jsonify({"ok": True, "path": str(snapshot_path)})
 
