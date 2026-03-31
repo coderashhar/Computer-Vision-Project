@@ -152,7 +152,9 @@ Key takeaways from this implementation:
 - Live face count overlay
 - Optional FPS overlay
 - Snapshot capture in CLI mode
+- Snapshot capture in web mode
 - Minimal browser frontend
+- Health-check endpoint for quick service verification
 - Tunable detection parameters
 
 ## 9. Project Structure
@@ -192,6 +194,12 @@ python web_app.py
 
 Open: `http://127.0.0.1:5000`
 
+Optional health check:
+
+```bash
+curl http://127.0.0.1:5000/health
+```
+
 ### 10.3 Run CLI Mode
 
 ```bash
@@ -214,6 +222,12 @@ python run.py --camera-index 0 --scale-factor 1.1 --min-neighbors 5 --min-size 4
 1. Haar cascades can miss faces under strong pose changes or low light.
 2. The project currently focuses on detection, not recognition/identity.
 3. Single-camera stream only.
+
+## 11.1 Web Frontend Controls
+
+- Start Stream: starts or refreshes the live MJPEG stream
+- Capture Snapshot: saves latest streamed frame to `captures/`
+- Stop: stops the browser stream
 
 ## 12. Future Improvements
 

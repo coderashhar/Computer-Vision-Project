@@ -38,9 +38,11 @@
 
           <div class="buttons">
             <button type="submit">Start Stream</button>
+            <button type="button" id="captureBtn">Capture Snapshot</button>
             <button type="button" id="stopBtn" class="ghost">Stop</button>
           </div>
         </form>
+        <p id="message" class="message" aria-live="polite"></p>
       </section>
 
       <section class="panel preview">
@@ -56,7 +58,14 @@
       const form = document.getElementById("controlsForm");
       const videoFeed = document.getElementById("videoFeed");
       const stopBtn = document.getElementById("stopBtn");
+      const captureBtn = document.getElementById("captureBtn");
       const statusTag = document.getElementById("status");
+      const message = document.getElementById("message");
+
+      function setMessage(text, isError = false) {
+        message.textContent = text;
+        message.classList.toggle("error", isError);
+      }
 
       function buildStreamUrl() {
         const formData = new FormData(form);
@@ -78,15 +87,32 @@
         event.preventDefault();
         statusTag.textContent = "Streaming";
         videoFeed.src = buildStreamUrl();
+        setMessage("Stream started.");
       });
 
       stopBtn.addEventListener("click", () => {
         videoFeed.removeAttribute("src");
         statusTag.textContent = "Stopped";
+        setMessage("Stream stopped.");
+      });
+
+      captureBtn.addEventListener("click", async () => {
+        try {
+          const response = await fetch("/snapshot", { method: "POST" });
+          const data = await response.json();
+          if (!response.ok || !data.ok) {
+            setMessage(data.error || "Could not save snapshot.", true);
+            return;
+          }
+          setMessage(`Snapshot saved: ${data.path}`);
+        } catch (error) {
+          setMessage("Network error while saving snapshot.", true);
+        }
       });
 
       videoFeed.addEventListener("error", () => {
         statusTag.textContent = "Camera error";
+        setMessage("Camera error. Check permissions or camera index.", true);
       });
     </script>
   </body>

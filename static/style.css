@@ -101,6 +101,10 @@ button.ghost {
   border: 1px solid var(--line);
 }
 
+#captureBtn {
+  background: var(--brand-2);
+}
+
 .preview-head {
   display: flex;
   align-items: center;
@@ -123,6 +127,17 @@ button.ghost {
   border: 1px dashed var(--line);
   background: linear-gradient(45deg, #f3f3f3, #fbfbfb);
   object-fit: cover;
+}
+
+.message {
+  min-height: 1.3rem;
+  margin: 12px 0 0;
+  font-size: 0.9rem;
+  color: #1f5d52;
+}
+
+.message.error {
+  color: #a12424;
 }
 
 @media (max-width: 900px) {

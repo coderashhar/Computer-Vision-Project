@@ -1,15 +1,32 @@
 from __future__ import annotations
 
+import threading
 import time
+from datetime import datetime
+from pathlib import Path
 from typing import Iterator
 
 import cv2
 import numpy as np
-from flask import Flask, Response, render_template, request
+from flask import Flask, Response, jsonify, render_template, request
 
 from src.face_detection import load_face_cascade
 
 app = Flask(__name__)
+
+_latest_jpeg: bytes | None = None
+_frame_lock = threading.Lock()
+
+
+def _set_latest_jpeg(frame_jpeg: bytes) -> None:
+    global _latest_jpeg
+    with _frame_lock:
+        _latest_jpeg = frame_jpeg
+
+
+def _get_latest_jpeg() -> bytes | None:
+    with _frame_lock:
+        return _latest_jpeg
 
 
 def _get_int_param(name: str, default: int, min_value: int = 0) -> int:
@@ -65,6 +82,7 @@ def generate_frames(
         )
         success, buffer = cv2.imencode(".jpg", frame)
         if success:
+            _set_latest_jpeg(buffer.tobytes())
             yield (
                 b"--frame\r\n"
                 b"Content-Type: image/jpeg\r\n\r\n" + buffer.tobytes() + b"\r\n"
@@ -119,9 +137,12 @@ def generate_frames(
             if not encoded:
                 continue
 
+            frame_jpeg = buffer.tobytes()
+            _set_latest_jpeg(frame_jpeg)
+
             yield (
                 b"--frame\r\n"
-                b"Content-Type: image/jpeg\r\n\r\n" + buffer.tobytes() + b"\r\n"
+                b"Content-Type: image/jpeg\r\n\r\n" + frame_jpeg + b"\r\n"
             )
     finally:
         cap.release()
@@ -150,6 +171,26 @@ def video_feed() -> Response:
         ),
         mimetype="multipart/x-mixed-replace; boundary=frame",
     )
+
+
+@app.get("/health")
+def health() -> Response:
+    return jsonify({"status": "ok", "service": "face-detection-web"})
+
+
+@app.post("/snapshot")
+def snapshot() -> Response:
+    frame_jpeg = _get_latest_jpeg()
+    if frame_jpeg is None:
+        return jsonify({"ok": False, "error": "No frame available yet. Start stream first."}), 400
+
+    save_dir = Path("captures")
+    save_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    snapshot_path = save_dir / f"web_snapshot_{timestamp}.jpg"
+    snapshot_path.write_bytes(frame_jpeg)
+
+    return jsonify({"ok": True, "path": str(snapshot_path)})
 
 
 if __name__ == "__main__":
